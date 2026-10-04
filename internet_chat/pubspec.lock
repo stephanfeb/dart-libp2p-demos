@@ -212,23 +212,26 @@ packages:
   dart_libp2p:
     dependency: "direct main"
     description:
-      path: "../../dart-libp2p"
-      relative: true
-    source: path
+      name: dart_libp2p
+      sha256: "267a02e5e5b2770a1814c1ba893855eb5f9a52cf31f995f19de21ce7bcf0b085"
+      url: "https://pub.dev"
+    source: hosted
     version: "4.1.0"
   dart_libp2p_kad_dht:
     dependency: "direct main"
     description:
-      path: "../../dart-libp2p-kad-dht"
-      relative: true
-    source: path
+      name: dart_libp2p_kad_dht
+      sha256: "0f38e106a234954070e597a7e139a14d5f5cf76e40b36d2ca9467c7847389e59"
+      url: "https://pub.dev"
+    source: hosted
     version: "1.4.1"
   dart_libp2p_pubsub:
     dependency: "direct main"
     description:
-      path: "../../dart-libp2p-pubsub"
-      relative: true
-    source: path
+      name: dart_libp2p_pubsub
+      sha256: d9f71a242b603dbc7d44ed5e92141952e6f07a8a2a0c1a13524f80c30ad32363
+      url: "https://pub.dev"
+    source: hosted
     version: "1.4.2"
   dart_multihash:
     dependency: transitive
