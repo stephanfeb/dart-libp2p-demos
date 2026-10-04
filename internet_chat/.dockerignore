@@ -1,0 +1,4 @@
+.dart_tool/
+pubspec_overrides.yaml
+*.key
+docker/compose.yml

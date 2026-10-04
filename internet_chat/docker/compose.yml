@@ -1,0 +1,98 @@
+# The internet chat on one machine: a relay on a simulated internet, and two
+# peers, each behind its own NAT router.
+#
+#   internet 100.70.0.0/16:  relay 100.70.3.10
+#                            nat-a 100.70.1.10    nat-b 100.70.1.20
+#   home-a 192.168.1.0/24:   nat-a 192.168.1.10,  alice 192.168.1.100
+#   home-b 192.168.2.0/24:   nat-b 192.168.2.10,  bob   192.168.2.100
+#
+# alice and bob cannot reach each other's private addresses. They meet
+# through the relay and the DHT, then hole-punch a direct connection through
+# both NATs. 100.70.0.0/16 is carrier-grade NAT space, which libp2p treats as
+# public, so it stands in for the internet.
+#
+#   docker compose -f docker/compose.yml up --build
+#   NAT_TYPE=symmetric docker compose -f docker/compose.yml up --build
+#   docker attach internet-chat-alice-1      (type to chat; Ctrl-P Ctrl-Q detaches)
+#   CHAT_FLAGS='--debug p2p-holepunch' docker compose -f docker/compose.yml up
+
+name: internet-chat
+
+x-peer: &peer
+  image: internet-chat
+  cap_add: [NET_ADMIN]
+  stdin_open: true
+  tty: true
+  volumes:
+    - shared:/shared:ro
+  environment: &peer-env
+    PUBLIC_NET: 100.70.0.0/16
+    RELAY_ADDR_FILE: /shared/relay.addrs
+
+x-nat: &nat
+  image: internet-chat-nat
+  build: nat
+  cap_add: [NET_ADMIN]
+  sysctls:
+    net.ipv4.ip_forward: 1
+
+services:
+  relay:
+    image: internet-chat
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: relay --port 4001 --key /shared/relay.key --addr-file /shared/relay.addrs
+    volumes:
+      - shared:/shared
+    networks:
+      internet: { ipv4_address: 100.70.3.10 }
+
+  nat-a:
+    <<: *nat
+    environment:
+      NAT_TYPE: ${NAT_TYPE:-cone}
+      INTERNAL_SUBNET: 192.168.1.0/24
+    networks:
+      internet: { ipv4_address: 100.70.1.10 }
+      home-a: { ipv4_address: 192.168.1.10 }
+
+  nat-b:
+    <<: *nat
+    environment:
+      NAT_TYPE: ${NAT_TYPE:-cone}
+      INTERNAL_SUBNET: 192.168.2.0/24
+    networks:
+      internet: { ipv4_address: 100.70.1.20 }
+      home-b: { ipv4_address: 192.168.2.10 }
+
+  alice:
+    <<: *peer
+    command: ${CHAT_FLAGS:-} peer --nick alice --key /tmp/peer.key --say "hello from behind NAT A" --say-every 20
+    environment:
+      <<: *peer-env
+      NAT_GATEWAY: 192.168.1.10
+    networks:
+      home-a: { ipv4_address: 192.168.1.100 }
+    depends_on: [relay, nat-a]
+
+  bob:
+    <<: *peer
+    command: ${CHAT_FLAGS:-} peer --nick bob --key /tmp/peer.key --say "hello from behind NAT B" --say-every 20
+    environment:
+      <<: *peer-env
+      NAT_GATEWAY: 192.168.2.10
+    networks:
+      home-b: { ipv4_address: 192.168.2.100 }
+    depends_on: [relay, nat-b]
+
+volumes:
+  shared:
+
+networks:
+  internet:
+    ipam: { config: [{ subnet: 100.70.0.0/16 }] }
+  home-a:
+    ipam: { config: [{ subnet: 192.168.1.0/24 }] }
+  home-b:
+    ipam: { config: [{ subnet: 192.168.2.0/24 }] }
